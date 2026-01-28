@@ -1,22 +1,16 @@
 import * as vscode from 'vscode';
 import { ConfigManager, Provider, Router } from './configManager';
-import { Logger } from './logger';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import * as fs from 'fs';
-const execAsync = promisify(exec);
 type DisposeCallback = () => void;
 export class SettingsPanel {
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
     private configManager: ConfigManager;
-    private logger: Logger;
     private _onDisposeCallback: DisposeCallback | null = null;
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, configManager: ConfigManager) {
         this._panel = panel;
         this.configManager = configManager;
-        this.logger = configManager.getLogger();
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.onDidChangeViewState(() => {
             if (this._panel.visible) {
@@ -255,73 +249,37 @@ export class SettingsPanel {
         }
     }
     private async handleRestartCcr(): Promise<void> {
-        try {
-            vscode.window.showInformationMessage('正在执行 ccr restart 命令...');
-            const { stdout, stderr } = await execAsync('ccr restart', {
-                cwd: process.cwd(),
-                timeout: 30000, // 30秒超时
-                windowsHide: true  // Windows下隐藏命令行窗口
-            });
-            if (stdout) {
-                this.logger.info(`ccr restart stdout: ${stdout}`);
-            }
-            if (stderr) {
-                this.logger.warn(`ccr restart stderr: ${stderr}`);
-                vscode.window.showWarningMessage(`ccr restart 警告: ${stderr}`);
-            }
-            vscode.window.showInformationMessage('ccr restart 命令执行完成！');
-        } catch (error: any) {
-            this.logger.error('ccr restart error:', error);
-            let errorMessage = '执行 ccr restart 失败';
-            if (error.code === 'ENOTFOUND') {
-                errorMessage = 'ccr 命令未找到，请确保 claude-code-router 已正确安装';
-            } else if (error.code === 'ETIMEDOUT') {
-                errorMessage = 'ccr restart 命令执行超时';
-            } else if (error.message) {
-                errorMessage = `ccr restart 失败: ${error.message}`;
-            }
-            vscode.window.showErrorMessage(errorMessage, '查看详情')
-                .then(selection => {
-                    if (selection === '查看详情') {
-                        const outputChannel = vscode.window.createOutputChannel('CCR Restart Error');
-                        outputChannel.show();
-                        outputChannel.appendLine(`错误: ${error}`);
-                        if (error.stdout) {
-                            outputChannel.appendLine('\n标准输出:');
-                            outputChannel.appendLine(error.stdout);
-                        }
-                        if (error.stderr) {
-                            outputChannel.appendLine('\n错误输出:');
-                            outputChannel.appendLine(error.stderr);
-                        }
-                    }
-                });
+        const result = await this.configManager.restartCcr();
+        if (result.success) {
+            vscode.window.showInformationMessage(result.message);
+        } else {
+            vscode.window.showErrorMessage(result.message);
         }
     }
     private async handleOpenCCRConfig(): Promise<void> {
         const configPath = this.configManager.getCCRConfigPath();
         try {
             if (!fs.existsSync(configPath)) {
-                vscode.window.showErrorMessage(`CCR配置文件不存在: ${configPath}`);
+                vscode.window.showErrorMessage(`CCR config file does not exist: ${configPath}`);
                 return;
             }
             const document = await vscode.workspace.openTextDocument(configPath);
             await vscode.window.showTextDocument(document);
         } catch (error: any) {
-            vscode.window.showErrorMessage(`打开CCR配置文件失败: ${error.message}`);
+            vscode.window.showErrorMessage(`Failed to open CCR config file: ${error.message}`);
         }
     }
     private async handleOpenCCSettings(): Promise<void> {
         const settingsPath = this.configManager.getCCSettingsPath();
         try {
             if (!fs.existsSync(settingsPath)) {
-                vscode.window.showErrorMessage(`CC settings文件不存在: ${settingsPath}`);
+                vscode.window.showErrorMessage(`CC settings file does not exist: ${settingsPath}`);
                 return;
             }
             const document = await vscode.workspace.openTextDocument(settingsPath);
             await vscode.window.showTextDocument(document);
         } catch (error: any) {
-            vscode.window.showErrorMessage(`打开CC settings文件失败: ${error.message}`);
+            vscode.window.showErrorMessage(`Failed to open CC settings file: ${error.message}`);
         }
     }
     private async handleFetchModels(apiBaseUrl: string, apiKey?: string, fetchModelApi?: string): Promise<void> {
@@ -334,14 +292,14 @@ export class SettingsPanel {
         } catch (error: any) {
             this._panel.webview.postMessage({
                 command: 'fetchModelsError',
-                error: error.message || '获取模型失败'
+                error: error.message || 'Failed to fetch models'
             });
             const result = await vscode.window.showErrorMessage(
-                '获取模型失败：' + (error.message || '未知错误'),
-                '查看详细日志',
-                '关闭'
+                'Failed to fetch models: ' + (error.message || 'Unknown error'),
+                'Details',
+                'Close'
             );
-            if (result === '查看详细日志') {
+            if (result === 'Details') {
                 this.configManager.getLogger().show(true);
             }
         }

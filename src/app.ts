@@ -32,7 +32,7 @@ export class App {
         this._initCommands();
         this._initConfigWatcher();
 
-        this._logger.info('初始化完成');
+        this._logger.info('Init ok.');
     }
 
     /**
@@ -130,23 +130,22 @@ export class App {
             return;
         }
 
-        this._logger.info('App 正在销毁...');
+        this._logger.info("Exit.")
 
         // 逆序销毁（先销毁依赖方，再销毁被依赖方）
         if (this._settingsPanel) {
             this._settingsPanel.dispose();
             this._settingsPanel = null;
         }
+
         // 销毁所有注册的 disposables（命令、监听器等）
         this._disposables.forEach(d => d.dispose());
         this._disposables = [];
-        // ConfigManager 不持有需要显式销毁的资源
+
         this._logger.dispose();
 
         this._isDisposed = true;
         App.instance = null;
-
-        this._logger.info('App 已销毁');
     }
 
     /**

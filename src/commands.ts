@@ -31,7 +31,7 @@ async function handleQuickSwitch(app: App): Promise<void> {
     await configManager.loadConfig();
     const config = configManager.getConfig();
     if (!config) {
-        vscode.window.showWarningMessage('Config 对象为空??');
+        vscode.window.showWarningMessage('Failed. Config object is null?');
         return;
     }
 
@@ -71,7 +71,7 @@ async function handleQuickSwitch(app: App): Promise<void> {
     const modelName = selectedModelValue ? selectedModelValue.replace(/,/g, ': ') : '空';
     await configManager.saveConfig();
     app.notifyConfigChanged();
-    vscode.window.showInformationMessage(`正在重启 ccr... 已更新模型路由: ${modelName}`);
+    vscode.window.showInformationMessage(`Restarting CCR... Model routing updated: ${modelName}`);
 
     const result = await configManager.restartCcr();
     if (result.success) {
@@ -85,13 +85,13 @@ async function handleOpenCCSettingsFile(configManager: App['configManager']): Pr
     try {
         const settingsPath = configManager.getCCSettingsPath();
         if (!fs.existsSync(settingsPath)) {
-            vscode.window.showErrorMessage(`CC settings文件不存在: ${settingsPath}`);
+            vscode.window.showErrorMessage(`CC settings file not found: ${settingsPath}`);
             return;
         }
         const document = await vscode.workspace.openTextDocument(settingsPath);
         await vscode.window.showTextDocument(document);
     } catch (error: any) {
-        vscode.window.showErrorMessage(`打开CC settings文件失败: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to open CC settings file: ${error.message}`);
     }
 }
 
@@ -99,13 +99,13 @@ async function handleOpenCCRConfigFile(configManager: App['configManager']): Pro
     try {
         const configPath = configManager.getCCRConfigPath();
         if (!fs.existsSync(configPath)) {
-            vscode.window.showErrorMessage(`CCR配置文件不存在: ${configPath}`);
+            vscode.window.showErrorMessage(`CCR config file not found: ${configPath}`);
             return;
         }
         const document = await vscode.workspace.openTextDocument(configPath);
         await vscode.window.showTextDocument(document);
     } catch (error: any) {
-        vscode.window.showErrorMessage(`打开CCR配置文件失败: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to open CCR config file: ${error.message}`);
     }
 }
 
@@ -118,7 +118,7 @@ async function handleRestartCCR(configManager: App['configManager']): Promise<vo
             vscode.window.showErrorMessage(result.message);
         }
     } catch (error: any) {
-        vscode.window.showErrorMessage(`重启CCR失败: ${error.message}`);
+        vscode.window.showErrorMessage(`Failed to restart CCR: ${error.message}`);
     }
 }
 
@@ -128,7 +128,7 @@ async function handleQuickSwitchModel(app: App, routerType: keyof Router): Promi
     const config = configManager.getConfig();
     const routerInfo = configManager.getRouterInfo();
     if (!config) {
-        vscode.window.showWarningMessage('Config 对象为空??');
+        vscode.window.showWarningMessage('Failed. Config object is null?');
         return;
     }
 
@@ -147,7 +147,7 @@ async function handleQuickSwitchModel(app: App, routerType: keyof Router): Promi
 
             const option = {
                 label: model,
-                description: isCurrent ? `${provider.name} (当前使用)` : provider.name,
+                description: isCurrent ? `${provider.name} (Current)` : provider.name,
                 detail: modelValue,
                 picked: isCurrent
             };
@@ -161,7 +161,7 @@ async function handleQuickSwitchModel(app: App, routerType: keyof Router): Promi
     });
 
     const selectedModel = await vscode.window.showQuickPick(modelOptions, {
-        placeHolder: `选择${configManager.getRouterDisplayName(routerType)}使用的模型`,
+        placeHolder: `选择'${configManager.getRouterDisplayName(routerType)}'使用的模型`,
         matchOnDescription: true
     });
 
@@ -174,7 +174,7 @@ async function handleQuickSwitchModel(app: App, routerType: keyof Router): Promi
 
     const routeName = configManager.getRouterDisplayName(routerType);
     const modelName = modelValue ? modelValue.replace(/,/g, ': ') : '空';
-    vscode.window.showInformationMessage(`正在重启 ccr... ${routeName} 模型路由已更新为: ${modelName}`);
+    vscode.window.showInformationMessage(`Restarting CCR... '${routeName}' Model routing updated: ${modelName}`);
 
     const result = await configManager.restartCcr();
     if (result.success) {

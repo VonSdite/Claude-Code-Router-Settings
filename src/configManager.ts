@@ -57,7 +57,6 @@ export class ConfigManager {
 
     constructor(logger: Logger) {
         this.logger = logger;
-        this.logger.info('ConfigManager 初始化');
     }
     async loadConfig(): Promise<Config | null> {
         this.ccrConfigPath = this.getCCRConfigPath();
@@ -220,14 +219,13 @@ export class ConfigManager {
     }
     async fetchModelsFromApi(apiBaseUrl: string, apiKey?: string, fetchModelApi?: string): Promise<string[]> {
         if (!apiBaseUrl) {
-            throw new Error('API基础地址不能为空');
+            throw new Error('API base URL cannot be empty');
         }
-        this.logger.info('=== 开始获取模型 ===');
+        this.logger.info('=== Fetching models ===');
         let url: URL;
         try {
             if (fetchModelApi && fetchModelApi.trim()) {
-                // 使用用户指定的API接口路径，需要拼接上根域名
-                const customPath = fetchModelApi.trim().replace(/^\/+|\/+$/g, ''); // 移除首尾的斜杠
+                const customPath = fetchModelApi.trim().replace(/^\/+|\/+$/g, '');
                 if (apiBaseUrl.startsWith('http')) {
                     const base = new URL(apiBaseUrl);
                     url = new URL(`/${customPath}`, base.origin);
@@ -236,7 +234,7 @@ export class ConfigManager {
                     url = new URL(`${cleanBase.startsWith('http') ? '' : 'https://'}${cleanBase}/${customPath}`);
                 }
             } else {
-                // 默认使用 /v1/models
+                // 默认/v1/models
                 if (apiBaseUrl.startsWith('http')) {
                     const base = new URL(apiBaseUrl);
                     url = new URL('/v1/models', base.origin);
@@ -245,9 +243,9 @@ export class ConfigManager {
                     url = new URL(`${cleanBase.startsWith('http') ? '' : 'https://'}${cleanBase}/v1/models`);
                 }
             }
-            this.logger.info(`使用接口: ${url.toString()}`);
+            this.logger.info(`Using endpoint: ${url.toString()}`);
         } catch (e) {
-            throw new Error(`无效的API接口地址: ${e}`);
+            throw new Error(`Invalid API endpoint address: ${e}`);
         }
         return new Promise((resolve, reject) => {
             const client = url.protocol === 'https:' ? https : http;
@@ -267,10 +265,7 @@ export class ConfigManager {
             };
             const req = client.request(options, (res) => {
                 let data = '';
-                this.logger.info(`请求响应状态: ${res.statusCode} ${res.statusMessage}`);
-                for (const [key, value] of Object.entries(res.headers)) {
-                    this.logger.info(`  ${key}: ${value}`);
-                }
+                this.logger.info(`Response: ${res.statusCode} ${res.statusMessage}`);
                 res.on('data', (chunk) => {
                     data += chunk;
                 });
@@ -280,52 +275,53 @@ export class ConfigManager {
                             const response = JSON.parse(data);
                             if (response.data && Array.isArray(response.data)) {
                                 const models = response.data.map((model: any) => model.id).filter((id: string) => id);
-                                this.logger.info(`✓ 成功获取 ${models.length} 个模型`);
+                                this.logger.info(`Successfully fetched ${models.length} models`);
                                 models.forEach((model: string, index: number) => {
                                     this.logger.info(`  ${index + 1}. ${model}`);
                                 });
                                 resolve(models);
                             } else {
-                                this.logger.info('✗ API返回的模型格式不正确');
-                                this.logger.info('响应内容:');
+                                this.logger.info('Unable to parse API response model format');
+                                this.logger.info('Response content:');
                                 this.logger.info(data);
                                 this.logger.show(true);
-                                reject(new Error('API返回的模型格式不正确'));
+                                reject(new Error('API returned incorrect model format'));
                             }
                         } else {
-                            this.logger.info('✗ 请求失败');
-                            this.logger.info('错误响应:');
+                            this.logger.info('Request failed');
+                            this.logger.info('Error response:');
                             this.logger.info(data);
                             this.logger.show(true);
-                            reject(new Error(`API请求失败: ${res.statusCode} ${res.statusMessage}`));
+                            reject(new Error(`API request failed: ${res.statusCode} ${res.statusMessage}`));
                         }
                     } catch (error) {
-                        this.logger.info('✗ 解析响应失败');
-                        this.logger.info(`错误信息: ${error}`);
-                        this.logger.info('原始响应:');
+                        this.logger.info('Failed to parse response');
+                        this.logger.info(`Error: ${error}`);
+                        this.logger.info('Raw response:');
                         this.logger.info(data);
                         this.logger.show(true);
-                        reject(new Error('解析API响应失败: ' + error));
+                        reject(new Error('Failed to parse API response: ' + error));
                     }
                 });
             });
             req.on('error', (error) => {
-                this.logger.info('✗ 请求出错');
-                this.logger.info(`错误信息: ${error.message}`);
+                this.logger.info('Request error');
+                this.logger.info(`Error message: ${error.message}`);
                 this.logger.show(true);
-                reject(new Error('请求API失败: ' + error.message));
+                reject(new Error('API request failed: ' + error.message));
             });
             req.setTimeout(5000, () => {
                 req.destroy();
-                this.logger.info('✗ 请求超时');
-                this.logger.info('请求超过10秒未响应');
+                this.logger.info('Request timeout');
+                this.logger.info('No response received within 5 seconds');
                 this.logger.show(true);
-                reject(new Error('请求超时'));
+                reject(new Error('Request timeout'));
             });
             req.end();
         });
     }
     async restartCcr(): Promise<{ success: boolean; message: string }> {
+        vscode.window.showInformationMessage('Processing: ccr restart...');
         try {
             const { stdout, stderr } = await execAsync('ccr restart', {
                 cwd: process.cwd(),
@@ -333,21 +329,21 @@ export class ConfigManager {
                 windowsHide: true
             });
             if (stdout) {
-                this.logger.info('ccr restart stdout: ' + stdout);
+                this.logger.info(`ccr restart stdout: ${stdout}`);
             }
             if (stderr) {
-                this.logger.info('ccr restart stderr: ' + stderr);
+                this.logger.info(`ccr restart stderr: ${stderr}`);
             }
-            return { success: true, message: 'ccr restart 命令执行完成' };
+            return { success: true, message: 'Done: ccr restart' };
         } catch (error: any) {
-            this.logger.info('ccr restart error: ' + error);
-            let errorMessage = '执行 ccr restart 失败';
+            this.logger.info(`ccr restart error: ${error}`);
+            let errorMessage = 'Failed to execute ccr restart';
             if (error.code === 'ENOTFOUND') {
-                errorMessage = 'ccr 命令未找到，请确保 claude-code-router 已正确安装';
+                errorMessage = 'ccr command not found, please ensure claude-code-router is installed correctly';
             } else if (error.code === 'ETIMEDOUT') {
-                errorMessage = 'ccr restart 命令执行超时';
+                errorMessage = 'ccr restart command execution timed out';
             } else if (error.message) {
-                errorMessage = `ccr restart 失败: ${error.message}`;
+                errorMessage = `ccr restart failed: ${error.message}`;
             }
             return { success: false, message: errorMessage };
         }

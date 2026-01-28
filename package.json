@@ -1,0 +1,95 @@
+{
+    "name": "claude-code-router-settings",
+    "activationEvents": ["onStartupFinished"],
+    "displayName": "claude-code-router Settings",
+    "description": "Manage claude-code-router configuration file",
+    "version": "1.0.0",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "main": "./dist/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "ccr.openSettingsPanel",
+                "title": "ccr: Open Settings Panel"
+            },
+            {
+                "command": "ccr.openCCRConfigFile",
+                "title": "ccr: Open CCR config.json"
+            },
+            {
+                "command": "ccr.openCCSettingsFile",
+                "title": "ccr: Open CC settings.json"
+            },
+            {
+                "command": "ccr.restartCCR",
+                "title": "ccr: Restart CCR"
+            },
+            {
+                "command": "ccr.quickSwitch",
+                "title": "ccr: Quick Switch Default、Think、Long Context、Background Model"
+            },
+            {
+                "command": "ccr.quickSwitchDefault",
+                "title": "ccr: Switch Default Model"
+            },
+            {
+                "command": "ccr.quickSwitchThink",
+                "title": "ccr: Switch Think Model"
+            },
+            {
+                "command": "ccr.quickSwitchLongContext",
+                "title": "ccr: Switch Long Context Model"
+            },
+            {
+                "command": "ccr.quickSwitchBackground",
+                "title": "ccr: Switch Background Model"
+            },
+            {
+                "command": "ccr.quickSwitchWebSearch",
+                "title": "ccr: Switch Web Search Model"
+            },
+            {
+                "command": "ccr.quickSwitchImage",
+                "title": "ccr: Switch Image Model"
+            }
+        ],
+        "menus": {},
+        "configuration": {
+            "title": "claude-code-router",
+            "properties": {
+                "ccr.ccrConfigPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the claude-code-router config.json file. If empty, uses system default path: Windows: %USERPROFILE%/.claude-code-router/config.json, Linux/Mac: ~/.claude-code-router/config.json"
+                },
+                "ccr.ccSettingsPath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to the Claude Code settings.json file. If empty, uses system default path: Windows: %USERPROFILE%/.claude/settings.json, Linux/Mac: ~/.claude/settings.json"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "lint": "eslint .",
+        "vscode:prepublish": "npm run compile",
+        "compile": "webpack",
+        "watch": "webpack --watch"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/node": "18.x",
+        "@typescript-eslint/eslint-plugin": "^6.13.0",
+        "@typescript-eslint/parser": "^6.13.0",
+        "eslint": "^8.54.0",
+        "typescript": "^5.3.0",
+        "ts-loader": "^9.5.1",
+        "webpack": "^5.89.0",
+        "webpack-cli": "^5.1.4"
+    }
+}

@@ -1,0 +1,84 @@
+{
+  "LOG": true,
+  "LOG_LEVEL": "info",
+  "CLAUDE_PATH": "",
+  "HOST": "127.0.0.1",
+  "PORT": 23456,
+  "APIKEY": "H",
+  "API_TIMEOUT_MS": "600000",
+  "PROXY_URL": "",
+  "transformers": [
+    {
+      "path": "D:\\transformers1.js",
+      "options": {
+        "headers": {
+          "a": 1,
+          "b": 2
+        }
+      }
+    },
+    {
+      "path": "D:\\transformers2.js",
+      "options": {}
+    }
+  ],
+  "Providers": [
+    {
+      "name": "test",
+      "api_base_url": "https://api.test.com/chat/completions",
+      "api_key": "test",
+      "models": [
+        "deepseek-chat",
+        "deepseek-reasoner"
+      ],
+      "transformer": {
+        "use": [
+          "deepseek"
+        ],
+        "deepseek-chat": {
+          "use": [
+            "deepseek",
+            [
+              "maxtoken",
+              {
+                "max_tokens": 65536
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "tes",
+      "api_base_url": "127.0.0.1",
+      "api_key": "1",
+      "models": []
+    },
+    {
+      "name": "tes1",
+      "api_base_url": "127.0.0.1",
+      "api_key": "1",
+      "models": []
+    }
+  ],
+  "Router": {
+    "default": "test,deepseek-chat",
+    "background": "test,deepseek-chat",
+    "think": "test,deepseek-chat",
+    "longContext": "test,deepseek-chat",
+    "longContextThreshold": 60000,
+    "webSearch": "",
+    "image": ""
+  },
+  "CUSTOM_ROUTER_PATH": "",
+  "StatusLine": {
+    "enabled": false,
+    "currentStyle": "default",
+    "default": {
+      "modules": []
+    },
+    "powerline": {
+      "modules": []
+    }
+  }
+}

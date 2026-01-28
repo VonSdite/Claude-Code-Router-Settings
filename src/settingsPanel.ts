@@ -121,6 +121,29 @@ export class SettingsPanel {
     }
 
     /**
+     * 确保 config 已加载，如果未加载则加载它
+     */
+    private async ensureConfigLoaded(): Promise<void> {
+        if (!this.configManager.getConfig()) {
+            await this.configManager.loadConfig();
+        }
+    }
+
+    /**
+     * 加载配置并发送更新到 webview
+     */
+    private async saveAndNotify(): Promise<void> {
+        await this.configManager.saveConfig();
+        const config = this.configManager.getConfig();
+        if (config) {
+            this._panel.webview.postMessage({
+                command: 'configLoaded',
+                config: config
+            });
+        }
+    }
+
+    /**
      * 注册 dispose 回调
      */
     public onDidDispose(callback: DisposeCallback): void {
@@ -151,76 +174,34 @@ export class SettingsPanel {
         }
     }
     private async handleAddProvider(provider: Provider): Promise<void> {
-        let config = this.configManager.getConfig();
-        if (!config) {
-            config = await this.configManager.loadConfig();
-        }
-        if (config) {
-            const result = this.configManager.addProvider(provider);
-            if (result.success) {
-                const updatedConfig = this.configManager.getConfig();
-                this._panel.webview.postMessage({
-                    command: 'configLoaded',
-                    config: updatedConfig
-                });
-                await this.configManager.saveConfig();
-                vscode.window.showInformationMessage(result.message);
-            } else {
-                vscode.window.showErrorMessage(result.message);
-            }
+        await this.ensureConfigLoaded();
+        const result = this.configManager.addProvider(provider);
+        if (result.success) {
+            await this.saveAndNotify();
+            vscode.window.showInformationMessage(result.message);
+        } else {
+            vscode.window.showErrorMessage(result.message);
         }
     }
     private async handleUpdateProvider(index: number, provider: Provider): Promise<void> {
-        let config = this.configManager.getConfig();
-        if (!config) {
-            config = await this.configManager.loadConfig();
-        }
-        if (config) {
-            this.configManager.updateProvider(index, provider);
-            const updatedConfig = this.configManager.getConfig();
-            this._panel.webview.postMessage({
-                command: 'configLoaded',
-                config: updatedConfig
-            });
-            await this.configManager.saveConfig();
-        }
+        await this.ensureConfigLoaded();
+        this.configManager.updateProvider(index, provider);
+        await this.saveAndNotify();
     }
     private async handleRemoveProvider(providerName: string): Promise<void> {
-        let config = this.configManager.getConfig();
-        if (!config) {
-            config = await this.configManager.loadConfig();
-        }
-        if (config) {
-            this.configManager.removeProvider(providerName);
-            const updatedConfig = this.configManager.getConfig();
-            this._panel.webview.postMessage({
-                command: 'configLoaded',
-                config: updatedConfig
-            });
-            await this.configManager.saveConfig();
-            vscode.window.showInformationMessage(`Provider "${providerName}" removed successfully!`);
-        }
+        await this.ensureConfigLoaded();
+        this.configManager.removeProvider(providerName);
+        await this.saveAndNotify();
+        vscode.window.showInformationMessage(`Provider "${providerName}" removed successfully!`);
     }
     private async handleUpdateRouter(key: keyof Router, value: string): Promise<void> {
-        let config = this.configManager.getConfig();
-        if (!config) {
-            config = await this.configManager.loadConfig();
-        }
-        if (config) {
-            this.configManager.updateRouter(key, value);
-            const updatedConfig = this.configManager.getConfig();
-            this._panel.webview.postMessage({
-                command: 'configLoaded',
-                config: updatedConfig
-            });
-            await this.configManager.saveConfig();
-        }
+        await this.ensureConfigLoaded();
+        this.configManager.updateRouter(key, value);
+        await this.saveAndNotify();
     }
     private async handleUpdateBasicConfig(updatedFields: any): Promise<void> {
-        let config = this.configManager.getConfig();
-        if (!config) {
-            config = await this.configManager.loadConfig();
-        }
+        await this.ensureConfigLoaded();
+        const config = this.configManager.getConfig();
         if (config) {
             config.LOG = updatedFields.LOG;
             config.LOG_LEVEL = updatedFields.LOG_LEVEL;
@@ -230,11 +211,7 @@ export class SettingsPanel {
             config.API_TIMEOUT_MS = updatedFields.API_TIMEOUT_MS;
             config.PROXY_URL = updatedFields.PROXY_URL;
             config.CLAUDE_PATH = updatedFields.CLAUDE_PATH;
-            await this.configManager.saveConfig();
-            this._panel.webview.postMessage({
-                command: 'configLoaded',
-                config: config
-            });
+            await this.saveAndNotify();
         }
     }
     private async handleRefreshConfig(): Promise<void> {
@@ -306,36 +283,20 @@ export class SettingsPanel {
     }
     private async handleAddTransformer(transformer: { path: string; options: { [key: string]: any } }): Promise<void> {
         if (transformer.path) {
+            await this.ensureConfigLoaded();
             this.configManager.addTransformer(transformer);
-            await this.configManager.saveConfig();
-            const updatedConfig = this.configManager.getConfig();
-            this._panel.webview.postMessage({
-                command: 'configLoaded',
-                config: updatedConfig
-            });
+            await this.saveAndNotify();
         }
     }
     private async handleUpdateTransformer(index: number, transformer: { path: string; options: { [key: string]: any } }): Promise<void> {
-        if (this.configManager.getConfig()) {
-            this.configManager.updateTransformer(index, transformer);
-            await this.configManager.saveConfig();
-            const updatedConfig = this.configManager.getConfig();
-            this._panel.webview.postMessage({
-                command: 'configLoaded',
-                config: updatedConfig
-            });
-        }
+        await this.ensureConfigLoaded();
+        this.configManager.updateTransformer(index, transformer);
+        await this.saveAndNotify();
     }
     private async handleRemoveTransformer(index: number): Promise<void> {
-        if (this.configManager.getConfig()) {
-            this.configManager.removeTransformer(index);
-            await this.configManager.saveConfig();
-            const updatedConfig = this.configManager.getConfig();
-            this._panel.webview.postMessage({
-                command: 'configLoaded',
-                config: updatedConfig
-            });
-        }
+        await this.ensureConfigLoaded();
+        this.configManager.removeTransformer(index);
+        await this.saveAndNotify();
     }
     private _getHtmlForWebview(_webview: vscode.Webview, _extensionUri: vscode.Uri): string {
         return `<!DOCTYPE html>

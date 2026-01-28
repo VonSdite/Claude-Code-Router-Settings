@@ -28,10 +28,11 @@ export function registerCommands(app: App): vscode.Disposable[] {
 
 async function handleQuickSwitch(app: App): Promise<void> {
     const configManager = app.configManager;
+    app.logger.info('Executing quick switch command');
     await configManager.loadConfig();
     const config = configManager.getConfig();
     if (!config) {
-        vscode.window.showWarningMessage('Failed. Config object is null?');
+        app.logger.warn('Config object is null after load');
         return;
     }
 
@@ -65,10 +66,11 @@ async function handleQuickSwitch(app: App): Promise<void> {
 
     const selectedModelValue = selectedModel.detail || '';
     for (const routerType of multiRouterTypes) {
-        configManager.setRouterModel(routerType, selectedModelValue);
+        configManager.updateRouter(routerType, selectedModelValue);
     }
 
     const modelName = selectedModelValue ? selectedModelValue.replace(/,/g, ': ') : '空';
+    app.logger.info(`Updating router models to: ${modelName}`);
     await configManager.saveConfig();
     app.notifyConfigChanged();
     vscode.window.showInformationMessage(`Restarting CCR... Model routing updated: ${modelName}`);
@@ -83,6 +85,7 @@ async function handleQuickSwitch(app: App): Promise<void> {
 
 async function handleOpenCCSettingsFile(configManager: App['configManager']): Promise<void> {
     try {
+        configManager.getLogger().info('Opening CC settings file');
         const settingsPath = configManager.getCCSettingsPath();
         if (!fs.existsSync(settingsPath)) {
             vscode.window.showErrorMessage(`CC settings file not found: ${settingsPath}`);
@@ -91,12 +94,13 @@ async function handleOpenCCSettingsFile(configManager: App['configManager']): Pr
         const document = await vscode.workspace.openTextDocument(settingsPath);
         await vscode.window.showTextDocument(document);
     } catch (error: any) {
-        vscode.window.showErrorMessage(`Failed to open CC settings file: ${error.message}`);
+        configManager.getLogger().error(`Failed to open CC settings file: ${error.message}`);
     }
 }
 
 async function handleOpenCCRConfigFile(configManager: App['configManager']): Promise<void> {
     try {
+        configManager.getLogger().info('Opening CCR config file');
         const configPath = configManager.getCCRConfigPath();
         if (!fs.existsSync(configPath)) {
             vscode.window.showErrorMessage(`CCR config file not found: ${configPath}`);
@@ -105,12 +109,13 @@ async function handleOpenCCRConfigFile(configManager: App['configManager']): Pro
         const document = await vscode.workspace.openTextDocument(configPath);
         await vscode.window.showTextDocument(document);
     } catch (error: any) {
-        vscode.window.showErrorMessage(`Failed to open CCR config file: ${error.message}`);
+        configManager.getLogger().error(`Failed to open CCR config file: ${error.message}`);
     }
 }
 
 async function handleRestartCCR(configManager: App['configManager']): Promise<void> {
     try {
+        configManager.getLogger().info('Executing ccr restart command');
         const result = await configManager.restartCcr();
         if (result.success) {
             vscode.window.showInformationMessage(result.message);
@@ -118,17 +123,18 @@ async function handleRestartCCR(configManager: App['configManager']): Promise<vo
             vscode.window.showErrorMessage(result.message);
         }
     } catch (error: any) {
-        vscode.window.showErrorMessage(`Failed to restart CCR: ${error.message}`);
+        configManager.getLogger().error(`Failed to restart CCR: ${error.message}`);
     }
 }
 
 async function handleQuickSwitchModel(app: App, routerType: keyof Router): Promise<void> {
     const configManager = app.configManager;
+    app.logger.info(`Executing quick switch for router: ${routerType}`);
     await configManager.loadConfig();
     const config = configManager.getConfig();
     const routerInfo = configManager.getRouterInfo();
     if (!config) {
-        vscode.window.showWarningMessage('Failed. Config object is null?');
+        app.logger.warn('Config object is null after load');
         return;
     }
 
@@ -168,7 +174,8 @@ async function handleQuickSwitchModel(app: App, routerType: keyof Router): Promi
     if (!selectedModel) return;
 
     const modelValue = selectedModel.detail || '';
-    configManager.setRouterModel(routerType, modelValue);
+    app.logger.info(`Updating router ${routerType} to model: ${modelValue}`);
+    configManager.updateRouter(routerType, modelValue);
     await configManager.saveConfig();
     app.notifyConfigChanged();
 

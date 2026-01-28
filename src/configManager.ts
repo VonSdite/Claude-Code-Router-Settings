@@ -7,9 +7,6 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { Logger } from './logger';
 const execAsync = promisify(exec);
-export interface Model {
-    name: string;
-}
 export interface Transformer {
     use: Array<string | [string, { [key: string]: any }]>;
     [key: string]: any;
@@ -61,7 +58,7 @@ export class ConfigManager {
     async loadConfig(): Promise<Config | null> {
         this.ccrConfigPath = this.getCCRConfigPath();
         if (!this.ccrConfigPath) {
-            vscode.window.showErrorMessage('Unable to determine config path');
+            this.logger.error('Unable to determine config path');
             return null;
         }
         try {
@@ -70,9 +67,11 @@ export class ConfigManager {
             return this.config;
         } catch (error) {
             if (fs.existsSync(this.ccrConfigPath)) {
+                this.logger.error(`Failed to load config file: ${error}`);
                 vscode.window.showErrorMessage(`Failed to load config file: ${error}`);
                 return null;
             } else {
+                this.logger.info('Config file not found, creating default config');
                 this.config = this.getDefaultConfig();
                 await this.saveConfig();
                 return this.config;
@@ -84,6 +83,7 @@ export class ConfigManager {
     }
     async saveConfig(): Promise<boolean> {
         if (!this.config || !this.ccrConfigPath) {
+            this.logger.warn('Cannot save config: config or path is null');
             return false;
         }
         try {
@@ -95,6 +95,7 @@ export class ConfigManager {
             fs.writeFileSync(this.ccrConfigPath, content, 'utf8');
             return true;
         } catch (error) {
+            this.logger.error(`Failed to save config file: ${error}`);
             vscode.window.showErrorMessage(`Failed to save config file: ${error}`);
             return false;
         }
@@ -167,11 +168,6 @@ export class ConfigManager {
             image: '图像'
         };
         return names[routerKey] || routerKey;
-    }
-    setRouterModel(routerKey: keyof Router, model: string): void {
-        if (this.config && routerKey in this.config.Router) {
-            (this.config.Router as any)[routerKey] = model;
-        }
     }
     addTransformer(transformer: TransformerConfig): void {
         if (this.config) {
@@ -281,39 +277,39 @@ export class ConfigManager {
                                 });
                                 resolve(models);
                             } else {
-                                this.logger.info('Unable to parse API response model format');
-                                this.logger.info('Response content:');
-                                this.logger.info(data);
+                                this.logger.error('Unable to parse API response model format');
+                                this.logger.error('Response content:');
+                                this.logger.error(data);
                                 this.logger.show(true);
                                 reject(new Error('API returned incorrect model format'));
                             }
                         } else {
-                            this.logger.info('Request failed');
-                            this.logger.info('Error response:');
-                            this.logger.info(data);
+                            this.logger.error('Request failed');
+                            this.logger.error('Error response:');
+                            this.logger.error(data);
                             this.logger.show(true);
                             reject(new Error(`API request failed: ${res.statusCode} ${res.statusMessage}`));
                         }
                     } catch (error) {
-                        this.logger.info('Failed to parse response');
-                        this.logger.info(`Error: ${error}`);
-                        this.logger.info('Raw response:');
-                        this.logger.info(data);
+                        this.logger.error('Failed to parse response');
+                        this.logger.error(`Error: ${error}`);
+                        this.logger.error('Raw response:');
+                        this.logger.error(data);
                         this.logger.show(true);
                         reject(new Error('Failed to parse API response: ' + error));
                     }
                 });
             });
             req.on('error', (error) => {
-                this.logger.info('Request error');
-                this.logger.info(`Error message: ${error.message}`);
+                this.logger.error('Request error');
+                this.logger.error(`Error message: ${error.message}`);
                 this.logger.show(true);
                 reject(new Error('API request failed: ' + error.message));
             });
             req.setTimeout(5000, () => {
                 req.destroy();
-                this.logger.info('Request timeout');
-                this.logger.info('No response received within 5 seconds');
+                this.logger.error('Request timeout');
+                this.logger.error('No response received within 5 seconds');
                 this.logger.show(true);
                 reject(new Error('Request timeout'));
             });
@@ -321,7 +317,7 @@ export class ConfigManager {
         });
     }
     async restartCcr(): Promise<{ success: boolean; message: string }> {
-        vscode.window.showInformationMessage('Processing: ccr restart...');
+        this.logger.info('Executing ccr restart command');
         try {
             const { stdout, stderr } = await execAsync('ccr restart', {
                 cwd: process.cwd(),
@@ -334,9 +330,10 @@ export class ConfigManager {
             if (stderr) {
                 this.logger.info(`ccr restart stderr: ${stderr}`);
             }
+            this.logger.info('ccr restart completed successfully');
             return { success: true, message: 'Done: ccr restart' };
         } catch (error: any) {
-            this.logger.info(`ccr restart error: ${error}`);
+            this.logger.error(`ccr restart error: ${error}`);
             let errorMessage = 'Failed to execute ccr restart';
             if (error.code === 'ENOTFOUND') {
                 errorMessage = 'ccr command not found, please ensure claude-code-router is installed correctly';

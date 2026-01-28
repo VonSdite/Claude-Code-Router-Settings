@@ -130,7 +130,7 @@ export class App {
             return;
         }
 
-        this._logger.info("Exit.")
+        this._logger.info("Exit.");
 
         // 逆序销毁（先销毁依赖方，再销毁被依赖方）
         if (this._settingsPanel) {

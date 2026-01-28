@@ -2,12 +2,13 @@ import * as vscode from 'vscode';
 import { ConfigManager } from './configManager';
 import { Logger } from './logger';
 import { SettingsPanel } from './settingsPanel';
+import { registerCommands } from './commands';
 
 /**
  * App 主类，负责依赖注入、对象创建、初始化和销毁
  *
  * 职责：
- * 1. 创建和管理所有核心服务（Logger、ConfigManager 等）
+ * 1. 创建和管理所有核心服务（Logger、ConfigManager、SettingsPanel 等）
  * 2. 控制依赖注入顺序
  * 3. 管理生命周期（初始化、激活、停用）
  * 4. 提供统一的服务访问接口
@@ -16,22 +17,22 @@ export class App {
     private static instance: App | null = null;
     private _logger: Logger;
     private _configManager: ConfigManager;
+    private _settingsPanel: SettingsPanel | null = null;
     private _extensionUri: vscode.Uri;
     private _context: vscode.ExtensionContext;
     private _isDisposed = false;
+    private _disposables: vscode.Disposable[] = [];
 
     private constructor(extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
         this._extensionUri = extensionUri;
         this._context = context;
-
-        // 1. 首先创建 Logger（不依赖其他服务）
         this._logger = new Logger('Claude Code Router Settings', 'info');
-        this._logger.info('App 正在初始化...');
-
-        // 2. 创建 ConfigManager（依赖 Logger）
         this._configManager = new ConfigManager(this._logger);
 
-        this._logger.info('App 初始化完成');
+        this._initCommands();
+        this._initConfigWatcher();
+
+        this._logger.info('初始化完成');
     }
 
     /**
@@ -72,6 +73,14 @@ export class App {
     }
 
     /**
+     * 获取 SettingsPanel 实例（可能为 null）
+     */
+    public get settingsPanel(): SettingsPanel | null {
+        this.checkNotDisposed();
+        return this._settingsPanel;
+    }
+
+    /**
      * 获取扩展 Uri
      */
     public get extensionUri(): vscode.Uri {
@@ -88,11 +97,29 @@ export class App {
     }
 
     /**
-     * 打开设置面板
+     * 打开或显示设置面板
      */
     public openSettingsPanel(): void {
         this.checkNotDisposed();
-        SettingsPanel.createOrShow(this._extensionUri, this._configManager);
+        if (this._settingsPanel) {
+            this._settingsPanel.show();
+        } else {
+            this._settingsPanel = SettingsPanel.create(this._extensionUri, this._configManager);
+            // 当面板被关闭时，清除引用
+            this._settingsPanel.onDidDispose(() => {
+                this._settingsPanel = null;
+            });
+        }
+    }
+
+    /**
+     * 通知配置已更改（刷新设置面板）
+     */
+    public async notifyConfigChanged(): Promise<void> {
+        this.checkNotDisposed();
+        if (this._settingsPanel) {
+            this._settingsPanel.refreshConfig();
+        }
     }
 
     /**
@@ -106,7 +133,13 @@ export class App {
         this._logger.info('App 正在销毁...');
 
         // 逆序销毁（先销毁依赖方，再销毁被依赖方）
-        // SettingsPanel 会自动处理自己的销毁
+        if (this._settingsPanel) {
+            this._settingsPanel.dispose();
+            this._settingsPanel = null;
+        }
+        // 销毁所有注册的 disposables（命令、监听器等）
+        this._disposables.forEach(d => d.dispose());
+        this._disposables = [];
         // ConfigManager 不持有需要显式销毁的资源
         this._logger.dispose();
 
@@ -114,6 +147,27 @@ export class App {
         App.instance = null;
 
         this._logger.info('App 已销毁');
+    }
+
+    /**
+     * 初始化所有命令
+     */
+    private _initCommands(): void {
+        const commands = registerCommands(this);
+        this._disposables.push(...commands);
+    }
+
+    /**
+     * 初始化配置文件监听器
+     */
+    private _initConfigWatcher(): void {
+        const configWatcher = vscode.workspace.createFileSystemWatcher(
+            this._configManager.getCCRConfigPath()
+        );
+        configWatcher.onDidChange(() => {
+            this.notifyConfigChanged();
+        });
+        this._disposables.push(configWatcher);
     }
 
     private checkNotDisposed(): void {

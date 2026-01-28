@@ -5,18 +5,17 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 const execAsync = promisify(exec);
-type ConfigChangeCallback = () => void | Promise<void>;
+type DisposeCallback = () => void;
 export class SettingsPanel {
-    public static currentPanel: SettingsPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
     private configManager: ConfigManager;
-    private configChangeCallback: ConfigChangeCallback | null = null;
     private logger: Logger;
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, configManager: ConfigManager, callback?: ConfigChangeCallback) {
+    private _onDisposeCallback: DisposeCallback | null = null;
+
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, configManager: ConfigManager) {
         this._panel = panel;
         this.configManager = configManager;
-        this.configChangeCallback = callback || null;
         this.logger = configManager.getLogger();
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
         this._panel.onDidChangeViewState(() => {
@@ -91,14 +90,13 @@ export class SettingsPanel {
             });
         }
     }
-    public static createOrShow(extensionUri: vscode.Uri, configManager: ConfigManager, callback?: ConfigChangeCallback) {
+    /**
+     * 创建 SettingsPanel 实例
+     */
+    public static create(extensionUri: vscode.Uri, configManager: ConfigManager): SettingsPanel {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
-        if (SettingsPanel.currentPanel) {
-            SettingsPanel.currentPanel._panel.reveal(column);
-            return;
-        }
         const panel = vscode.window.createWebviewPanel(
             'claudeRouterSettings',
             'Claude Code Router Settings',
@@ -108,13 +106,33 @@ export class SettingsPanel {
                 localResourceRoots: [extensionUri]
             }
         );
-        SettingsPanel.currentPanel = new SettingsPanel(panel, extensionUri, configManager, callback);
+        return new SettingsPanel(panel, extensionUri, configManager);
     }
-    public static notifyConfigChanged(): void {
-        if (SettingsPanel.currentPanel) {
-            SettingsPanel.currentPanel.refreshConfigInternal();
-        }
+
+    /**
+     * 显示面板
+     */
+    public show(): void {
+        const column = vscode.window.activeTextEditor
+            ? vscode.window.activeTextEditor.viewColumn
+            : undefined;
+        this._panel.reveal(column);
     }
+
+    /**
+     * 刷新配置
+     */
+    public refreshConfig(): void {
+        this.refreshConfigInternal();
+    }
+
+    /**
+     * 注册 dispose 回调
+     */
+    public onDidDispose(callback: DisposeCallback): void {
+        this._onDisposeCallback = callback;
+    }
+
     private async refreshConfigInternal(): Promise<void> {
         await this.configManager.loadConfig();
         const config = this.configManager.getConfig();
@@ -125,19 +143,17 @@ export class SettingsPanel {
             });
         }
     }
-    private async notifyConfigChange(): Promise<void> {
-        if (this.configChangeCallback) {
-            await this.configChangeCallback();
-        }
-    }
-    public dispose() {
-        SettingsPanel.currentPanel = undefined;
+    public dispose(): void {
         this._panel.dispose();
         while (this._disposables.length) {
             const x = this._disposables.pop();
             if (x) {
                 x.dispose();
             }
+        }
+        if (this._onDisposeCallback) {
+            this._onDisposeCallback();
+            this._onDisposeCallback = null;
         }
     }
     private async handleAddProvider(provider: Provider): Promise<void> {
@@ -204,7 +220,6 @@ export class SettingsPanel {
                 config: updatedConfig
             });
             await this.configManager.saveConfig();
-            await this.notifyConfigChange();
         }
     }
     private async handleUpdateBasicConfig(updatedFields: any): Promise<void> {
@@ -222,17 +237,11 @@ export class SettingsPanel {
             config.PROXY_URL = updatedFields.PROXY_URL;
             config.CLAUDE_PATH = updatedFields.CLAUDE_PATH;
             await this.configManager.saveConfig();
-            await this.notifyConfigChange();
             this._panel.webview.postMessage({
                 command: 'configLoaded',
                 config: config
             });
         }
-    }
-    public async refreshConfig(): Promise<void> {
-        this._panel.webview.postMessage({
-            command: 'refreshConfig'
-        });
     }
     private async handleRefreshConfig(): Promise<void> {
         await this.configManager.loadConfig();

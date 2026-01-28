@@ -3,13 +3,14 @@
     "activationEvents": ["onStartupFinished"],
     "displayName": "claude-code-router Settings",
     "description": "Manage claude-code-router configuration file",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "repository": {
         "type": "git",
         "url": "https://github.com/VonSdite/Claude-Code-Router-Settings.git"
     },
     "license": "MIT",
     "publisher": "VonSdite",
+    "icon": "icon.png",
     "engines": {
         "vscode": "^1.85.0"
     },

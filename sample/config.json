@@ -3,7 +3,7 @@
   "LOG_LEVEL": "info",
   "CLAUDE_PATH": "",
   "HOST": "127.0.0.1",
-  "PORT": 23456,
+  "PORT": 3456,
   "APIKEY": "H",
   "API_TIMEOUT_MS": "600000",
   "PROXY_URL": "",

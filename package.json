@@ -1,9 +1,9 @@
 {
-    "name": "claude-code-router-settings",
+    "name": "ccr-settings",
     "activationEvents": ["onStartupFinished"],
-    "displayName": "claude-code-router Settings",
+    "displayName": "CCR Settings",
     "description": "Manage claude-code-router configuration file",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "repository": {
         "type": "git",
         "url": "https://github.com/VonSdite/Claude-Code-Router-Settings.git"
